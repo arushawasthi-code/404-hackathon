@@ -90,7 +90,7 @@ jobs:
       - name: Generate AI Summary
         id: ai-summary
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           # Read the PR data
           PR_DATA=$(cat pr-data.json)
@@ -156,10 +156,10 @@ jobs:
       
       - name: Push to Confluence
         env:
-          CONFLUENCE_URL: ${{ secrets.CONFLUENCE_URL }}
-          CONFLUENCE_USER: ${{ secrets.CONFLUENCE_USER }}
-          CONFLUENCE_API_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
-          CONFLUENCE_PAGE_ID: ${{ secrets.CONFLUENCE_PAGE_ID }}
+          CONFLUENCE_URL: method.atlassian.net/wiki/api/v2/
+          CONFLUENCE_USER: a.awasthi@method.me
+          ATLASSIAN_TOKEN: ${{ secrets.CONFLUENCE_API_TOKEN }}
+          CONFLUENCE_PAGE_ID: 199393283
         run: |
           # Read the summary
           SUMMARY=$(cat summary.txt)
