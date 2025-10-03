@@ -1,1 +1,38 @@
 hello
+{
+  "id": 75,
+  "firstName": "Mia",
+  "lastName": "Lopez",
+  "email": "vtfru@hdg9o.com",
+  "active": true,
+  "tags": [
+    "word",
+    "system"
+  ],
+  "details": {
+    "age": 41,
+    "city": "Madrid",
+    "country": "France",
+    "phoneNumber": "(713) 264-3833",
+    "startDate": "2019-01-07T16:54:42.894Z",
+    "endDate": "2002-03-10T12:18:23.766Z"
+  }
+}
+{
+  "id": 97,
+  "firstName": "Sophia",
+  "lastName": "Harris",
+  "email": "hwkns@45zyl.com",
+  "active": true,
+  "tags": [
+    "part"
+  ],
+  "details": {
+    "age": 51,
+    "city": "Lahore",
+    "country": "Spain",
+    "phoneNumber": "(214) 672-3493",
+    "startDate": "2000-12-20T13:20:47.799Z",
+    "endDate": "2013-04-29T04:56:50.656Z"
+  }
+}
