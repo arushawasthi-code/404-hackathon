@@ -244,3 +244,42 @@ hello
     "endDate": "2007-09-05T07:19:57.857Z"
   }
 }
+{
+  "id": 98,
+  "firstName": "Olivia",
+  "lastName": "Fox",
+  "email": "vlxcz@ksy1j.com",
+  "active": false,
+  "tags": [
+    "man"
+  ],
+  "details": {
+    "age": 27,
+    "city": "Lahore",
+    "country": "India",
+    "phoneNumber": "(617) 708-5984",
+    "startDate": "2023-03-19T18:21:25.071Z",
+    "endDate": "2014-11-05T20:07:57.430Z"
+  }
+}
+{
+  "id": 13,
+  "firstName": "Emma",
+  "lastName": "Reynolds",
+  "email": "woa0t@b579b.com",
+  "active": true,
+  "tags": [
+    "room",
+    "woman",
+    "country",
+    "act"
+  ],
+  "details": {
+    "age": 18,
+    "city": "San Francisco",
+    "country": "DR Congo",
+    "phoneNumber": "(214) 929-2709",
+    "startDate": "2019-12-28T11:03:02.898Z",
+    "endDate": "2020-11-26T23:09:10.379Z"
+  }
+}
