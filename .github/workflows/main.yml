@@ -5,7 +5,6 @@ on:
     types: [closed]
     branches:
       - main
-      - NewClaudeChanges
   workflow_dispatch:  # Allow manual testing
 
 jobs:
@@ -273,8 +272,8 @@ jobs:
           EOF
           )
           
-          # Append the new expand node to existing content
-          UPDATED_CONTENT=$(echo "$EXISTING_CONTENT" | jq --argjson new "$NEW_EXPAND_NODE" '. + [$new]')
+          # Prepend the new expand node to existing content (add to top)
+          UPDATED_CONTENT=$(echo "$EXISTING_CONTENT" | jq --argjson new "$NEW_EXPAND_NODE" '[$new] + .')
           
           # Create the complete ADF document
           UPDATED_BODY=$(jq -n \
