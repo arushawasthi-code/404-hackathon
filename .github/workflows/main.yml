@@ -97,11 +97,6 @@ jobs:
           
           # Create prompt for Claude
           PROMPT="You are a technical reviewer with 10 years of experience. Generate a concise technical summary of this pull request.
-          Use the documentation in the below URL to generate the summary in Atlassian Documentation format (using elements like expandible sections when appropriate):
-          https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
-
-          The Atlassian Document Format is a JSON object that follows the below schema. The generated summary MUST FOLLOW THIS SCHEMA:
-          http://go.atlassian.com/adf-json-schema
           
           PR Data:
           $PR_DATA
@@ -112,7 +107,7 @@ jobs:
           3. Files modified and their purpose
           4. Any potential concerns or areas for review
           
-          Keep it concise and technical."
+          Keep it concise and technical. Format your response as plain text without any special formatting."
           
           # Call Claude API
           RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
@@ -168,8 +163,6 @@ jobs:
         run: |
           # Read the summary
           SUMMARY=$(cat summary.txt)
-
-          
           
           # Get PR details
           PR_NUMBER="${{ steps.ai-summary.outputs.pr_number }}"
@@ -195,8 +188,7 @@ jobs:
             -H "Content-Type: application/json")
           
           # Debug: Check if we got valid JSON
-          echo "API Response:"
-          echo "$CURRENT_PAGE"
+          echo "API Response received"
           
           # Check if response is valid
           if ! echo "$CURRENT_PAGE" | jq empty 2>/dev/null; then
@@ -206,42 +198,119 @@ jobs:
           
           # Extract current version and body
           CURRENT_VERSION=$(echo "$CURRENT_PAGE" | jq -r '.version.number')
-          CURRENT_BODY=$(echo "$CURRENT_PAGE" | jq -r '.body.storage.value')
+          CURRENT_BODY=$(echo "$CURRENT_PAGE" | jq -r '.body.atlas_doc_format.value')
           
-          # Escape summary for HTML
-          ESCAPED_SUMMARY=$(echo "$SUMMARY" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g' | sed ':a;N;$!ba;s/\n/<br\/>/g')
+          echo "Current version: $CURRENT_VERSION"
           
-          # Create new PR entry
-          NEW_ENTRY="<h3>PR #$PR_NUMBER: <a href=\"$PR_URL\">$PR_TITLE</a></h3>
-          <p><em>Merged on $MERGED_AT by $MERGED_BY</em></p>
-          <p>$ESCAPED_SUMMARY</p>
-          <hr/>"
+          # Parse existing ADF content
+          EXISTING_CONTENT=$(echo "$CURRENT_BODY" | jq -c '.content // []')
           
-          # Simply append to the end of the page
-          UPDATED_BODY="$CURRENT_BODY
-          $NEW_ENTRY"
+          # Escape summary text for JSON (handles newlines, quotes, etc.)
+          ESCAPED_SUMMARY=$(echo "$SUMMARY" | jq -Rs .)
           
-          # Update the page
-          curl -s -u "$CONFLUENCE_USER:$CONFLUENCE_API_TOKEN" \
+          # Create the new expand node with PR summary in ADF format
+          NEW_EXPAND_NODE=$(cat <<EOF
+          {
+            "type": "expand",
+            "attrs": {
+              "title": "PR #$PR_NUMBER: $PR_TITLE"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Merged on: $MERGED_AT"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Merged by: $MERGED_BY"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PR Link: "
+                  },
+                  {
+                    "type": "text",
+                    "text": "$PR_URL",
+                    "marks": [
+                      {
+                        "type": "link",
+                        "attrs": {
+                          "href": "$PR_URL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "rule"
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": $ESCAPED_SUMMARY
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+          
+          # Append the new expand node to existing content
+          UPDATED_CONTENT=$(echo "$EXISTING_CONTENT" | jq --argjson new "$NEW_EXPAND_NODE" '. + [$new]')
+          
+          # Create the complete ADF document
+          UPDATED_BODY=$(jq -n \
+            --argjson content "$UPDATED_CONTENT" \
+            '{
+              "version": 1,
+              "type": "doc",
+              "content": $content
+            }')
+          
+          # Update the page with new ADF content
+          UPDATE_RESPONSE=$(curl -s -u "$CONFLUENCE_USER:$CONFLUENCE_API_TOKEN" \
             -X PUT \
             "$CONFLUENCE_URL/pages/$CONFLUENCE_PAGE_ID" \
             -H "Content-Type: application/json" \
             -d @- << EOF
           {
-            "version": {
-              "number": $((CURRENT_VERSION + 1))
-            },
-            "status" : "current",
-            "title": "$(echo "$CURRENT_PAGE" | jq -r '.title')",
-            "type": "page",
-            "id" : "$(echo "$CONFLUENCE_PAGE_ID")",
+            "id": "$CONFLUENCE_PAGE_ID",
+            "status": "current",
+            "title": $(echo "$CURRENT_PAGE" | jq -r '.title' | jq -Rs .),
             "body": {
-              "storage": {
-                "value": $(echo "$UPDATED_BODY" | jq -Rs .),
-                "representation": "atlas_doc_format"
-              }
+              "representation": "atlas_doc_format",
+              "value": $(echo "$UPDATED_BODY" | jq -c | jq -Rs .)
+            },
+            "version": {
+              "number": $((CURRENT_VERSION + 1)),
+              "message": "Added PR #$PR_NUMBER summary via GitHub Actions"
             }
           }
           EOF
+          )
           
-          echo "✅ Successfully appended PR #$PR_NUMBER to Confluence page"
+          # Check if update was successful
+          if echo "$UPDATE_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
+            echo "✅ Successfully added collapsible PR #$PR_NUMBER to Confluence page"
+          else
+            echo "❌ Error updating Confluence page"
+            echo "Response: $UPDATE_RESPONSE"
+            exit 1
+          fi
