@@ -96,7 +96,12 @@ jobs:
           PR_DATA=$(cat pr-data.json)
           
           # Create prompt for Claude
-          PROMPT="You are a technical reviewer with 10 years of experience. Generate a concise technical summary of this pull request. Use the documentation in the given URL to generate the summary in Atlassian Documentation format (using elements like expandible sections when appropriate). url: https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
+          PROMPT="You are a technical reviewer with 10 years of experience. Generate a concise technical summary of this pull request.
+          Use the documentation in the below URL to generate the summary in Atlassian Documentation format (using elements like expandible sections when appropriate):
+          https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
+
+          The Atlassian Document Format is a JSON object that follows the below schema:
+          http://go.atlassian.com/adf-json-schema
           
           PR Data:
           $PR_DATA
