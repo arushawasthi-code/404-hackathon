@@ -163,6 +163,8 @@ jobs:
         run: |
           # Read the summary
           SUMMARY=$(cat summary.txt)
+
+          
           
           # Get PR details
           PR_NUMBER="${{ steps.ai-summary.outputs.pr_number }}"
@@ -170,6 +172,15 @@ jobs:
           PR_URL="${{ steps.ai-summary.outputs.pr_url }}"
           MERGED_AT="${{ github.event.pull_request.merged_at }}"
           MERGED_BY="${{ github.event.pull_request.merged_by.login }}"
+
+          echo "========================================="
+          echo "DEBUG: Starting Confluence Integration"
+          echo "========================================="
+          echo "Confluence URL: $CONFLUENCE_URL"
+          echo "Page ID: $CONFLUENCE_PAGE_ID"
+          echo "User: $CONFLUENCE_USER"
+          echo "PR Number: $PR_NUMBER"
+          echo ""
           
           # Get the current page content
           echo "Fetching Confluence page..."
