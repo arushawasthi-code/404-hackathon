@@ -265,7 +265,7 @@ jobs:
                   }
                 ]
               },
-JIRA_EOF
+              JIRA_EOF
             )
             # Replace placeholders
             JIRA_CONTENT=$(echo "$JIRA_CONTENT" | sed "s|JIRA_TICKET_PLACEHOLDER|$JIRA_TICKET|g" | sed "s|JIRA_URL_PLACEHOLDER|$JIRA_URL|g")
