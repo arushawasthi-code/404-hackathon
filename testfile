@@ -154,3 +154,23 @@ hello
     "endDate": "2014-07-17T15:54:34.776Z"
   }
 }
+{
+  "id": 88,
+  "firstName": "Joseph",
+  "lastName": "Hernandez",
+  "email": "dy4t9@ekaal.com",
+  "active": false,
+  "tags": [
+    "art",
+    "number",
+    "state"
+  ],
+  "details": {
+    "age": 99,
+    "city": "Taichung",
+    "country": "India",
+    "phoneNumber": "(617) 408-4395",
+    "startDate": "2021-11-02T09:06:07.778Z",
+    "endDate": "2004-11-18T10:17:56.694Z"
+  }
+}
