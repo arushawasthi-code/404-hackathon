@@ -118,11 +118,25 @@ jobs:
           
           echo "Fetching Jira issue details for $JIRA_TICKET..."
           
-          # Fetch issue from Jira API with specific fields
+          # First, get all fields to find the custom field IDs
+          echo "Getting field metadata..."
+          FIELDS_RESPONSE=$(curl -s -u "$JIRA_USER:$JIRA_API_TOKEN" \
+            -X GET \
+            -H "Accept: application/json" \
+            "https://method.atlassian.net/rest/api/3/field")
+          
+          # Find the custom field IDs for Analysis Results and Resolution Details
+          ANALYSIS_FIELD=$(echo "$FIELDS_RESPONSE" | jq -r '.[] | select(.name == "Analysis Results") | .id')
+          RESOLUTION_FIELD=$(echo "$FIELDS_RESPONSE" | jq -r '.[] | select(.name == "Resolution Details") | .id')
+          
+          echo "Analysis Results field ID: $ANALYSIS_FIELD"
+          echo "Resolution Details field ID: $RESOLUTION_FIELD"
+          
+          # Fetch issue from Jira API with the custom fields
           JIRA_RESPONSE=$(curl -s -u "$JIRA_USER:$JIRA_API_TOKEN" \
             -X GET \
             -H "Accept: application/json" \
-            "https://method.atlassian.net/rest/api/3/issue/$JIRA_TICKET?fields=description,resolution")
+            "https://method.atlassian.net/rest/api/3/issue/$JIRA_TICKET?fields=$ANALYSIS_FIELD,$RESOLUTION_FIELD")
           
           echo "Jira API Response:"
           echo "$JIRA_RESPONSE"
@@ -130,30 +144,36 @@ jobs:
           # Check if the request was successful
           if echo "$JIRA_RESPONSE" | jq -e '.errorMessages' > /dev/null 2>&1; then
             echo "⚠️ Warning: Could not fetch Jira issue details"
-            echo "jira_description=" >> $GITHUB_OUTPUT
+            echo "jira_analysis=" >> $GITHUB_OUTPUT
             echo "jira_resolution=" >> $GITHUB_OUTPUT
             echo "has_jira_details=false" >> $GITHUB_OUTPUT
           else
-            # Extract description (it's in ADF format, we'll extract text from it)
-            JIRA_DESC_RAW=$(echo "$JIRA_RESPONSE" | jq -r '.fields.description')
+            # Extract Analysis Results (it's in ADF format)
+            ANALYSIS_RAW=$(echo "$JIRA_RESPONSE" | jq -r ".fields.\"$ANALYSIS_FIELD\"")
             
-            # If description exists and is not null, extract text content from ADF
-            if [ "$JIRA_DESC_RAW" != "null" ] && [ -n "$JIRA_DESC_RAW" ]; then
+            # If analysis exists and is not null, extract text content from ADF
+            if [ "$ANALYSIS_RAW" != "null" ] && [ -n "$ANALYSIS_RAW" ]; then
               # Extract all text nodes from ADF document recursively
-              JIRA_DESCRIPTION=$(echo "$JIRA_DESC_RAW" | jq -r '.. | select(.type? == "text") | .text' | tr '\n' ' ' | head -c 500)
-              echo "jira_description=$JIRA_DESCRIPTION" >> $GITHUB_OUTPUT
+              JIRA_ANALYSIS=$(echo "$ANALYSIS_RAW" | jq -r '.. | select(.type? == "text") | .text' | tr '\n' ' ' | head -c 1000)
+              echo "jira_analysis=$JIRA_ANALYSIS" >> $GITHUB_OUTPUT
             else
-              echo "jira_description=No description available" >> $GITHUB_OUTPUT
+              echo "jira_analysis=No analysis available" >> $GITHUB_OUTPUT
             fi
             
-            # Extract resolution
-            JIRA_RESOLUTION=$(echo "$JIRA_RESPONSE" | jq -r '.fields.resolution.name // "Unresolved"')
-            echo "jira_resolution=$JIRA_RESOLUTION" >> $GITHUB_OUTPUT
+            # Extract Resolution Details (also in ADF format)
+            RESOLUTION_RAW=$(echo "$JIRA_RESPONSE" | jq -r ".fields.\"$RESOLUTION_FIELD\"")
+            
+            if [ "$RESOLUTION_RAW" != "null" ] && [ -n "$RESOLUTION_RAW" ]; then
+              JIRA_RESOLUTION=$(echo "$RESOLUTION_RAW" | jq -r '.. | select(.type? == "text") | .text' | tr '\n' ' ' | head -c 1000)
+              echo "jira_resolution=$JIRA_RESOLUTION" >> $GITHUB_OUTPUT
+            else
+              echo "jira_resolution=No resolution details available" >> $GITHUB_OUTPUT
+            fi
             
             echo "has_jira_details=true" >> $GITHUB_OUTPUT
             echo "✅ Jira details fetched successfully"
-            echo "Description preview: $JIRA_DESCRIPTION"
-            echo "Resolution: $JIRA_RESOLUTION"
+            echo "Analysis Results preview: $JIRA_ANALYSIS"
+            echo "Resolution Details preview: $JIRA_RESOLUTION"
           fi
       
       - name: Generate AI Summary
@@ -218,7 +238,7 @@ jobs:
           echo "pr_url=${{ github.event.pull_request.html_url }}" >> $GITHUB_OUTPUT
           echo "jira_ticket=${{ steps.jira-ticket.outputs.jira_ticket }}" >> $GITHUB_OUTPUT
           echo "has_jira=${{ steps.jira-ticket.outputs.has_jira }}" >> $GITHUB_OUTPUT
-          echo "jira_description=${{ steps.jira-details.outputs.jira_description }}" >> $GITHUB_OUTPUT
+          echo "jira_analysis=${{ steps.jira-details.outputs.jira_analysis }}" >> $GITHUB_OUTPUT
           echo "jira_resolution=${{ steps.jira-details.outputs.jira_resolution }}" >> $GITHUB_OUTPUT
           echo "has_jira_details=${{ steps.jira-details.outputs.has_jira_details }}" >> $GITHUB_OUTPUT
       
@@ -254,7 +274,7 @@ jobs:
           MERGED_BY="${{ github.event.pull_request.merged_by.login }}"
           JIRA_TICKET="${{ steps.ai-summary.outputs.jira_ticket }}"
           HAS_JIRA="${{ steps.ai-summary.outputs.has_jira }}"
-          JIRA_DESCRIPTION="${{ steps.ai-summary.outputs.jira_description }}"
+          JIRA_ANALYSIS="${{ steps.ai-summary.outputs.jira_analysis }}"
           JIRA_RESOLUTION="${{ steps.ai-summary.outputs.jira_resolution }}"
           HAS_JIRA_DETAILS="${{ steps.ai-summary.outputs.has_jira_details }}"
 
@@ -319,8 +339,8 @@ jobs:
               --arg merged_by "$MERGED_BY" \
               --arg jira_ticket "$JIRA_TICKET" \
               --arg jira_url "$JIRA_URL" \
-              --arg jira_desc "$JIRA_DESCRIPTION" \
-              --arg jira_res "$JIRA_RESOLUTION" \
+              --arg jira_analysis "$JIRA_ANALYSIS" \
+              --arg jira_resolution "$JIRA_RESOLUTION" \
               --arg pr_url "$PR_URL" \
               --argjson summary "$ESCAPED_SUMMARY" \
               '{
@@ -373,21 +393,7 @@ jobs:
                     "content": [
                       {
                         "type": "text",
-                        "text": ("Resolution: " + $jira_res),
-                        "marks": [
-                          {
-                            "type": "strong"
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "type": "paragraph",
-                    "content": [
-                      {
-                        "type": "text",
-                        "text": "Analysis: ",
+                        "text": "Analysis Results: ",
                         "marks": [
                           {
                             "type": "strong"
@@ -396,7 +402,25 @@ jobs:
                       },
                       {
                         "type": "text",
-                        "text": $jira_desc
+                        "text": $jira_analysis
+                      }
+                    ]
+                  },
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Resolution Details: ",
+                        "marks": [
+                          {
+                            "type": "strong"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": $jira_resolution
                       }
                     ]
                   },
