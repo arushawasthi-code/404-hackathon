@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - NewClaudeChanges
+      - Testtes
   workflow_dispatch:  # Allow manual testing
 
 jobs:
