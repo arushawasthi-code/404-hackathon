@@ -244,3 +244,21 @@ hello
     "endDate": "2007-09-05T07:19:57.857Z"
   }
 }
+{
+  "id": 98,
+  "firstName": "Olivia",
+  "lastName": "Fox",
+  "email": "vlxcz@ksy1j.com",
+  "active": false,
+  "tags": [
+    "man"
+  ],
+  "details": {
+    "age": 27,
+    "city": "Lahore",
+    "country": "India",
+    "phoneNumber": "(617) 708-5984",
+    "startDate": "2023-03-19T18:21:25.071Z",
+    "endDate": "2014-11-05T20:07:57.430Z"
+  }
+}
