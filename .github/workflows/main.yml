@@ -96,7 +96,7 @@ jobs:
           PR_DATA=$(cat pr-data.json)
           
           # Create prompt for Claude
-          PROMPT="You are a technical reviewer with 10 years of experience. Generate a concise technical summary of this pull request. Use this documentation to give an output we can paste into the body of confluence.net api to generate collapsable sections. url: https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
+          PROMPT="You are a technical reviewer with 10 years of experience. Generate a concise technical summary of this pull request. Use the documentation in the given URL to generate the summary in Atlassian Documentation format (using elements like expandible sections when appropriate). url: https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
           
           PR Data:
           $PR_DATA
@@ -159,7 +159,7 @@ jobs:
           CONFLUENCE_URL: https://method.atlassian.net/wiki/api/v2
           CONFLUENCE_USER: a.awasthi@method.me
           CONFLUENCE_API_TOKEN: ${{ secrets.ATLASSIAN_TOKEN }}
-          CONFLUENCE_PAGE_ID: 199393283
+          CONFLUENCE_PAGE_ID: 198869144
         run: |
           # Read the summary
           SUMMARY=$(cat summary.txt)
