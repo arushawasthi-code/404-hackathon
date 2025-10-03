@@ -136,3 +136,21 @@ hello
     "endDate": "2001-05-10T19:51:48.347Z"
   }
 }
+{
+  "id": 43,
+  "firstName": "Joseph",
+  "lastName": "Morgan",
+  "email": "dvmek@wcrks.com",
+  "active": false,
+  "tags": [
+    "side"
+  ],
+  "details": {
+    "age": 40,
+    "city": "Los Angeles",
+    "country": "Japan",
+    "phoneNumber": "(602) 804-7339",
+    "startDate": "2014-11-30T15:41:04.568Z",
+    "endDate": "2022-10-11T05:19:18.085Z"
+  }
+}
