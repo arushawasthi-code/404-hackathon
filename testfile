@@ -99,3 +99,22 @@ hello
     "endDate": "2025-01-04T22:28:31.348Z"
   }
 }
+{
+  "id": 59,
+  "firstName": "Isabella",
+  "lastName": "Crawford",
+  "email": "tfohv@5tg1j.com",
+  "active": false,
+  "tags": [
+    "woman",
+    "side"
+  ],
+  "details": {
+    "age": 10,
+    "city": "Osaka",
+    "country": "Philippines",
+    "phoneNumber": "(415) 364-3186",
+    "startDate": "2021-08-06T15:07:14.963Z",
+    "endDate": "2012-05-22T16:58:32.092Z"
+  }
+}
