@@ -87,6 +87,25 @@ jobs:
             
             return output;
       
+      - name: Extract Jira Ticket
+        id: jira-ticket
+        run: |
+          # Get the head branch name
+          HEAD_BRANCH="${{ github.event.pull_request.head.ref }}"
+          echo "Branch name: $HEAD_BRANCH"
+          
+          # Check if branch starts with "PL" and extract ticket ID
+          if [[ "$HEAD_BRANCH" =~ ^PL(.{6}) ]]; then
+            JIRA_TICKET="PL${BASH_REMATCH[1]}"
+            echo "✅ Found Jira ticket: $JIRA_TICKET"
+            echo "jira_ticket=$JIRA_TICKET" >> $GITHUB_OUTPUT
+            echo "has_jira=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️ No Jira ticket found in branch name (doesn't start with PL)"
+            echo "has_jira=false" >> $GITHUB_OUTPUT
+            echo "jira_ticket=" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Generate AI Summary
         id: ai-summary
         env:
@@ -139,6 +158,8 @@ jobs:
           echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
           echo "pr_title=${{ github.event.pull_request.title }}" >> $GITHUB_OUTPUT
           echo "pr_url=${{ github.event.pull_request.html_url }}" >> $GITHUB_OUTPUT
+          echo "jira_ticket=${{ steps.jira-ticket.outputs.jira_ticket }}" >> $GITHUB_OUTPUT
+          echo "has_jira=${{ steps.jira-ticket.outputs.has_jira }}" >> $GITHUB_OUTPUT
       
       - name: Comment on PR
         uses: actions/github-script@v7
@@ -170,6 +191,8 @@ jobs:
           PR_URL="${{ steps.ai-summary.outputs.pr_url }}"
           MERGED_AT="${{ github.event.pull_request.merged_at }}"
           MERGED_BY="${{ github.event.pull_request.merged_by.login }}"
+          JIRA_TICKET="${{ steps.ai-summary.outputs.jira_ticket }}"
+          HAS_JIRA="${{ steps.ai-summary.outputs.has_jira }}"
 
           echo "========================================="
           echo "DEBUG: Starting Confluence Integration"
@@ -178,6 +201,11 @@ jobs:
           echo "Page ID: $CONFLUENCE_PAGE_ID"
           echo "User: $CONFLUENCE_USER"
           echo "PR Number: $PR_NUMBER"
+          if [ "$HAS_JIRA" = "true" ]; then
+            echo "Jira Ticket: $JIRA_TICKET"
+          else
+            echo "Jira Ticket: None (branch doesn't start with PL)"
+          fi
           echo ""
           
           # Get the current page content
@@ -212,8 +240,127 @@ jobs:
           # Escape summary text for JSON (handles newlines, quotes, etc.)
           ESCAPED_SUMMARY=$(echo "$SUMMARY" | jq -Rs .)
           
+          # Build Jira ticket section if it exists
+          if [ "$HAS_JIRA" = "true" ]; then
+            JIRA_URL="https://method.atlassian.net/browse/$JIRA_TICKET"
+            JIRA_CONTENT=$(cat <<'JIRA_EOF'
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Jira Ticket: "
+                  },
+                  {
+                    "type": "text",
+                    "text": "JIRA_TICKET_PLACEHOLDER",
+                    "marks": [
+                      {
+                        "type": "link",
+                        "attrs": {
+                          "href": "JIRA_URL_PLACEHOLDER"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+JIRA_EOF
+            )
+            # Replace placeholders
+            JIRA_CONTENT=$(echo "$JIRA_CONTENT" | sed "s|JIRA_TICKET_PLACEHOLDER|$JIRA_TICKET|g" | sed "s|JIRA_URL_PLACEHOLDER|$JIRA_URL|g")
+          else
+            JIRA_CONTENT=""
+          fi
+          
           # Create the new expand node with PR summary in ADF format
-          NEW_EXPAND_NODE=$(cat <<EOF
+          # Build content array based on whether Jira ticket exists
+          if [ "$HAS_JIRA" = "true" ]; then
+            NEW_EXPAND_NODE=$(cat <<EOF
+          {
+            "type": "expand",
+            "attrs": {
+              "title": "PR #$PR_NUMBER: $PR_TITLE"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Merged on: $MERGED_AT"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Merged by: $MERGED_BY"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Jira Ticket: "
+                  },
+                  {
+                    "type": "text",
+                    "text": "$JIRA_TICKET",
+                    "marks": [
+                      {
+                        "type": "link",
+                        "attrs": {
+                          "href": "$JIRA_URL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "PR Link: "
+                  },
+                  {
+                    "type": "text",
+                    "text": "$PR_URL",
+                    "marks": [
+                      {
+                        "type": "link",
+                        "attrs": {
+                          "href": "$PR_URL"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "rule"
+              },
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": $ESCAPED_SUMMARY
+                  }
+                ]
+              }
+            ]
+          }
+EOF
+            )
+          else
+            NEW_EXPAND_NODE=$(cat <<EOF
           {
             "type": "expand",
             "attrs": {
@@ -273,8 +420,9 @@ jobs:
               }
             ]
           }
-          EOF
-          )
+EOF
+            )
+          fi
           
           # Prepend the new expand node to existing content (add to top)
           UPDATED_CONTENT=$(echo "$EXISTING_CONTENT" | jq --argjson new "$NEW_EXPAND_NODE" '[$new] + .')
