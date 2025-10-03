@@ -215,8 +215,10 @@ jobs:
             "version": {
               "number": $((CURRENT_VERSION + 1))
             },
+            "status" : "draft",
             "title": "$(echo "$CURRENT_PAGE" | jq -r '.title')",
             "type": "page",
+            "id" : "$(echo "$CONFLUENCE_PAGE_ID" | jq -r '.id')",
             "body": {
               "storage": {
                 "value": $(echo "$UPDATED_BODY" | jq -Rs .),
