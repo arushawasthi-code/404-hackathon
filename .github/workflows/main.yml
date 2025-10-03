@@ -5,6 +5,7 @@ on:
     types: [closed]
     branches:
       - main
+      - NewClaudeChanges
   workflow_dispatch:  # Allow manual testing
 
 jobs:
