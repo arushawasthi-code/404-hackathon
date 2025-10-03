@@ -96,7 +96,7 @@ jobs:
           PR_DATA=$(cat pr-data.json)
           
           # Create prompt for Claude
-          PROMPT="You are a technical reviewer. Generate a concise technical summary of this pull request.
+          PROMPT="You are a technical reviewer with 10 years of experience. Generate a concise technical summary of this pull request. Use this documentation to give an output we can paste into the body of confluence.net api to generate collapsable sections. url: https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/
           
           PR Data:
           $PR_DATA
@@ -233,7 +233,7 @@ jobs:
             "body": {
               "storage": {
                 "value": $(echo "$UPDATED_BODY" | jq -Rs .),
-                "representation": "storage"
+                "representation": "atlas_doc_format"
               }
             }
           }
