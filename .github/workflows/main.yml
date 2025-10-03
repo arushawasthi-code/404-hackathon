@@ -358,7 +358,7 @@ jobs:
               }
             ]
           }
-EOF
+          EOF
             )
           else
             NEW_EXPAND_NODE=$(cat <<EOF
@@ -421,7 +421,7 @@ EOF
               }
             ]
           }
-EOF
+          EOF
             )
           fi
           
