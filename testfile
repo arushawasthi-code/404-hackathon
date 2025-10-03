@@ -136,21 +136,3 @@ hello
     "endDate": "2022-10-11T05:19:18.085Z"
   }
 }
-{
-  "id": 89,
-  "firstName": "William",
-  "lastName": "Fisher",
-  "email": "hvfqi@n1d6c.com",
-  "active": true,
-  "tags": [
-    "lot"
-  ],
-  "details": {
-    "age": 24,
-    "city": "Riyadh",
-    "country": "India",
-    "phoneNumber": "(214) 698-5662",
-    "startDate": "2011-03-28T08:42:35.222Z",
-    "endDate": "2019-04-10T22:19:43.213Z"
-  }
-}
