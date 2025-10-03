@@ -175,7 +175,7 @@ jobs:
           echo "Fetching Confluence page..."
           CURRENT_PAGE=$(curl -s -u "$CONFLUENCE_USER:$CONFLUENCE_API_TOKEN" \
             -X GET \
-            "$CONFLUENCE_URL/rest/api/content/$CONFLUENCE_PAGE_ID?expand=body.storage,version" \
+            "$CONFLUENCE_URL/pages/$CONFLUENCE_PAGE_ID" \
             -H "Content-Type: application/json")
           
           # Debug: Check if we got valid JSON
@@ -208,7 +208,7 @@ jobs:
           # Update the page
           curl -s -u "$CONFLUENCE_USER:$CONFLUENCE_API_TOKEN" \
             -X PUT \
-            "$CONFLUENCE_URL/rest/api/content/$CONFLUENCE_PAGE_ID" \
+            "$CONFLUENCE_URL/pages/$CONFLUENCE_PAGE_ID" \
             -H "Content-Type: application/json" \
             -d @- << EOF
           {
