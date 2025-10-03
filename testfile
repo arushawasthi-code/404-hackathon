@@ -244,21 +244,3 @@ hello
     "endDate": "2007-09-05T07:19:57.857Z"
   }
 }
-{
-  "id": 24,
-  "firstName": "Elizabeth",
-  "lastName": "Wood",
-  "email": "qltxh@uakyd.com",
-  "active": false,
-  "tags": [
-    "ability"
-  ],
-  "details": {
-    "age": 86,
-    "city": "Paris",
-    "country": "Colombia",
-    "phoneNumber": "(718) 382-9158",
-    "startDate": "2017-01-23T04:20:14.255Z",
-    "endDate": "2024-11-08T10:02:17.171Z"
-  }
-}
