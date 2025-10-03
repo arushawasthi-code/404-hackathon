@@ -134,26 +134,34 @@ jobs:
             -H "Content-Type: application/json" \
             -H "x-api-key: $ANTHROPIC_API_KEY" \
             -H "anthropic-version: 2023-06-01" \
-            -d @- << EOF
+            -d @- << 'CLAUDE_EOF'
           {
             "model": "claude-3-5-sonnet-20241022",
             "max_tokens": 1024,
             "messages": [{
               "role": "user",
-              "content": $(echo "$PROMPT" | jq -Rs .)
+              "content": "PROMPT_PLACEHOLDER"
             }]
           }
-          EOF
+          CLAUDE_EOF
           )
+          
+          # Replace placeholder with actual prompt (needs proper escaping)
+          ESCAPED_PROMPT=$(echo "$PROMPT" | jq -Rs .)
+          RESPONSE=$(curl -s https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            --data-raw "{\"model\":\"claude-3-5-sonnet-20241022\",\"max_tokens\":1024,\"messages\":[{\"role\":\"user\",\"content\":$ESCAPED_PROMPT}]}")
           
           # Extract summary from response
           SUMMARY=$(echo "$RESPONSE" | jq -r '.content[0].text')
           
           # Save summary
           echo "$SUMMARY" > summary.txt
-          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "summary<<SUMMARY_EOF" >> $GITHUB_OUTPUT
           echo "$SUMMARY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "SUMMARY_EOF" >> $GITHUB_OUTPUT
           
           # Also save PR number and title for Confluence
           echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
@@ -241,188 +249,170 @@ jobs:
           # Escape summary text for JSON (handles newlines, quotes, etc.)
           ESCAPED_SUMMARY=$(echo "$SUMMARY" | jq -Rs .)
           
-          # Build Jira ticket section if it exists
+          # Build Jira URL if ticket exists
           if [ "$HAS_JIRA" = "true" ]; then
             JIRA_URL="https://method.atlassian.net/browse/$JIRA_TICKET"
-            JIRA_CONTENT=$(cat <<'JIRA_EOF'
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Jira Ticket: "
-                  },
-                  {
-                    "type": "text",
-                    "text": "JIRA_TICKET_PLACEHOLDER",
-                    "marks": [
-                      {
-                        "type": "link",
-                        "attrs": {
-                          "href": "JIRA_URL_PLACEHOLDER"
-                        }
-                      }
-                    ]
-                  }
-                ]
-              },
-              JIRA_EOF
-            )
-            # Replace placeholders
-            JIRA_CONTENT=$(echo "$JIRA_CONTENT" | sed "s|JIRA_TICKET_PLACEHOLDER|$JIRA_TICKET|g" | sed "s|JIRA_URL_PLACEHOLDER|$JIRA_URL|g")
-          else
-            JIRA_CONTENT=""
           fi
           
           # Create the new expand node with PR summary in ADF format
           # Build content array based on whether Jira ticket exists
           if [ "$HAS_JIRA" = "true" ]; then
-            NEW_EXPAND_NODE=$(cat <<EOF
-          {
-            "type": "expand",
-            "attrs": {
-              "title": "PR #$PR_NUMBER: $PR_TITLE"
-            },
-            "content": [
-              {
-                "type": "paragraph",
+            NEW_EXPAND_NODE=$(jq -n \
+              --arg pr_num "$PR_NUMBER" \
+              --arg pr_title "$PR_TITLE" \
+              --arg merged_at "$MERGED_AT" \
+              --arg merged_by "$MERGED_BY" \
+              --arg jira_ticket "$JIRA_TICKET" \
+              --arg jira_url "$JIRA_URL" \
+              --arg pr_url "$PR_URL" \
+              --argjson summary "$ESCAPED_SUMMARY" \
+              '{
+                "type": "expand",
+                "attrs": {
+                  "title": ("PR #" + $pr_num + ": " + $pr_title)
+                },
                 "content": [
                   {
-                    "type": "text",
-                    "text": "Merged on: $MERGED_AT"
-                  }
-                ]
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Merged by: $MERGED_BY"
-                  }
-                ]
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Jira Ticket: "
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": ("Merged on: " + $merged_at)
+                      }
+                    ]
                   },
                   {
-                    "type": "text",
-                    "text": "$JIRA_TICKET",
-                    "marks": [
+                    "type": "paragraph",
+                    "content": [
                       {
-                        "type": "link",
-                        "attrs": {
-                          "href": "$JIRA_URL"
-                        }
+                        "type": "text",
+                        "text": ("Merged by: " + $merged_by)
+                      }
+                    ]
+                  },
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Jira Ticket: "
+                      },
+                      {
+                        "type": "text",
+                        "text": $jira_ticket,
+                        "marks": [
+                          {
+                            "type": "link",
+                            "attrs": {
+                              "href": $jira_url
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "PR Link: "
+                      },
+                      {
+                        "type": "text",
+                        "text": $pr_url,
+                        "marks": [
+                          {
+                            "type": "link",
+                            "attrs": {
+                              "href": $pr_url
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "rule"
+                  },
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": $summary
                       }
                     ]
                   }
                 ]
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "PR Link: "
-                  },
-                  {
-                    "type": "text",
-                    "text": "$PR_URL",
-                    "marks": [
-                      {
-                        "type": "link",
-                        "attrs": {
-                          "href": "$PR_URL"
-                        }
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "rule"
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": $ESCAPED_SUMMARY
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
-            )
+              }')
           else
-            NEW_EXPAND_NODE=$(cat <<EOF
-          {
-            "type": "expand",
-            "attrs": {
-              "title": "PR #$PR_NUMBER: $PR_TITLE"
-            },
-            "content": [
-              {
-                "type": "paragraph",
+            NEW_EXPAND_NODE=$(jq -n \
+              --arg pr_num "$PR_NUMBER" \
+              --arg pr_title "$PR_TITLE" \
+              --arg merged_at "$MERGED_AT" \
+              --arg merged_by "$MERGED_BY" \
+              --arg pr_url "$PR_URL" \
+              --argjson summary "$ESCAPED_SUMMARY" \
+              '{
+                "type": "expand",
+                "attrs": {
+                  "title": ("PR #" + $pr_num + ": " + $pr_title)
+                },
                 "content": [
                   {
-                    "type": "text",
-                    "text": "Merged on: $MERGED_AT"
-                  }
-                ]
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "Merged by: $MERGED_BY"
-                  }
-                ]
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": "PR Link: "
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": ("Merged on: " + $merged_at)
+                      }
+                    ]
                   },
                   {
-                    "type": "text",
-                    "text": "$PR_URL",
-                    "marks": [
+                    "type": "paragraph",
+                    "content": [
                       {
-                        "type": "link",
-                        "attrs": {
-                          "href": "$PR_URL"
-                        }
+                        "type": "text",
+                        "text": ("Merged by: " + $merged_by)
+                      }
+                    ]
+                  },
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "PR Link: "
+                      },
+                      {
+                        "type": "text",
+                        "text": $pr_url,
+                        "marks": [
+                          {
+                            "type": "link",
+                            "attrs": {
+                              "href": $pr_url
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "rule"
+                  },
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": $summary
                       }
                     ]
                   }
                 ]
-              },
-              {
-                "type": "rule"
-              },
-              {
-                "type": "paragraph",
-                "content": [
-                  {
-                    "type": "text",
-                    "text": $ESCAPED_SUMMARY
-                  }
-                ]
-              }
-            ]
-          }
-          EOF
-            )
+              }')
           fi
           
           # Prepend the new expand node to existing content (add to top)
@@ -439,27 +429,16 @@ jobs:
 
           echo "$UPDATED_BODY"
           
+          # Get page title for update
+          PAGE_TITLE=$(echo "$CURRENT_PAGE" | jq -r '.title')
+          
           # Update the page with new ADF content
           UPDATE_RESPONSE=$(curl -s -u "$CONFLUENCE_USER:$CONFLUENCE_API_TOKEN" \
             -X PUT \
             "$CONFLUENCE_URL/pages/$CONFLUENCE_PAGE_ID" \
             -H "Content-Type: application/json" \
-            -d @- << EOF
-          {
-            "id": "$CONFLUENCE_PAGE_ID",
-            "status": "current",
-            "title": $(echo "$CURRENT_PAGE" | jq -r '.title' | jq -Rs .),
-            "body": {
-              "representation": "atlas_doc_format",
-              "value": $(echo "$UPDATED_BODY" | jq -c | jq -Rs .)
-            },
-            "version": {
-              "number": $((CURRENT_VERSION + 1)),
-              "message": "Added PR #$PR_NUMBER summary via GitHub Actions"
-            }
-          }
-          EOF
-          )
+            -H "Accept: application/json" \
+            --data-raw "{\"id\":\"$CONFLUENCE_PAGE_ID\",\"status\":\"current\",\"title\":\"$PAGE_TITLE\",\"body\":{\"representation\":\"atlas_doc_format\",\"value\":$(echo "$UPDATED_BODY" | jq -c | jq -Rs .)},\"version\":{\"number\":$((CURRENT_VERSION + 1)),\"message\":\"Added PR #$PR_NUMBER summary via GitHub Actions\"}}")
           
           # Check if update was successful
           if echo "$UPDATE_RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
