@@ -218,7 +218,7 @@ jobs:
             "status" : "draft",
             "title": "$(echo "$CURRENT_PAGE" | jq -r '.title')",
             "type": "page",
-            "id" : "$(echo "$CONFLUENCE_PAGE_ID" | jq -r '.id')",
+            "id" : "$(echo "$CONFLUENCE_PAGE_ID")",
             "body": {
               "storage": {
                 "value": $(echo "$UPDATED_BODY" | jq -Rs .),
